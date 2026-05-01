@@ -349,6 +349,49 @@ function createMcpServer() {
     }
   );
 
+  const BEE_HOST = 'liqui@192.168.1.9';
+    const BEE_KEY  = '/volume1/homes/kaj/.ssh/id_ed25519';
+    const SSH_OPTS = '-o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5';
+    function beeExec(cmd) {
+      return safeExec('ssh ' + SSH_OPTS + ' -i ' + BEE_KEY + ' ' + BEE_HOST + ' "' + cmd + '"');
+    }
+    server.tool('bee_run_command', 'Run a shell command on liquidBee (192.168.1.9) via SSH.',
+      { command: z.string() },
+      async ({ command }) => {
+        const blocked = ['rm -rf /', 'mkfs', 'dd if='];
+        if (blocked.some(b => command.includes(b))) return { content: [{ type: 'text', text: 'Error: blocked' }] };
+        return { content: [{ type: 'text', text: beeExec(command) || '(no output)' }] };
+      }
+    );
+    server.tool('bee_docker_ps', 'List Docker containers on liquidBee.',
+      { all: z.boolean().default(false) },
+      async ({ all }) => {
+        const raw = beeExec('docker ps ' + (all ? '-a' : '') + ' --format  "{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}"');
+        const lines = raw.split('\n').filter(Boolean).map(function(l) {
+          var parts = l.split('|');
+          return parts[0].padEnd(28) + ' ' + parts[2].padEnd(30) + ' ' + parts[1] + '\n' + ' '.repeat(28) + ' ' +
+  (parts[3] || '(no ports)');
+        });
+        return { content: [{ type: 'text', text: 'liquidBee containers:\n\n' + (lines.join('\n\n') || '(none)') }] };
+      }
+    );
+    server.tool('bee_docker_logs', 'Get logs from a Docker container on liquidBee.',
+      { container: z.string(), lines: z.number().int().min(10).max(500).default(50), since: z.string().optional() },
+      async ({ container, lines, since }) => {
+        var sinceArg = since ? '--since ' + since + ' ' : '';
+        var cmd = 'docker logs ' + container + ' ' + sinceArg + '--tail ' + lines + ' 2>&1';
+        return { content: [{ type: 'text', text: 'Logs: ' + container + ' (liquidBee)\n' + '\u2500'.repeat(50) + '\n' +
+  beeExec(cmd) }] };
+      }
+    );
+    server.tool('bee_system_info', 'Get system info from liquidBee.',
+      {},
+      async () => {
+        return { content: [{ type: 'text', text: '=== liquidBee (192.168.1.9) ===\nUptime: ' + beeExec('uptime') +
+  '\n\nMemory:\n' + beeExec('free -h') + '\n\nDisk:\n' + beeExec('df -h /') }] };
+      }
+    );
+
   server.resource('homelab-overview', 'liquidguru://homelab/overview',
     { mimeType: 'text/plain', description: 'Overview of the liquidguru homelab' },
     async () => ({
