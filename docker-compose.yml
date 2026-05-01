@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  liquidguru-mcp:
+    build: .
+    container_name: liquidguru-mcp
+    restart: unless-stopped
+    ports:
+      - "3333:3333"
+    environment:
+      - PORT=3333
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - BASE_URL=https://mcp.liquid.guru
+      - ALLOWED_ROOTS=/volume1/docker,/volume1/homes,/volume1/Media
+      - DOCKER_SOCKET=/var/run/docker.sock
+      - DOCKER_API_VERSION=1.43
+    volumes:
+      - /volume1/docker:/volume1/docker:ro
+      - /volume1/docker/liquidguru-mcp/data:/data
+      - /volume1/homes:/volume1/homes:ro
+      - /volume1/Media:/volume1/Media:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      

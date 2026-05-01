@@ -1,0 +1,21 @@
+{
+  "name": "liquidguru-mcp",
+  "version": "1.0.0",
+  "description": "Custom MCP server for liquidguru homelab",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "simple-git": "^3.36.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
