@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
-# Install git, docker-cli, and network tools
-RUN apk add --no-cache git docker-cli iputils netcat-openbsd bash
+# Install git, docker-cli, network tools, and ssh client for liquidBee access
+RUN apk add --no-cache git docker-cli iputils netcat-openbsd bash openssh-client
 
 WORKDIR /app
 

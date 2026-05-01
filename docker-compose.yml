@@ -14,8 +14,9 @@ services:
       - ALLOWED_ROOTS=/volume1/docker,/volume1/homes,/volume1/Media
       - DOCKER_SOCKET=/var/run/docker.sock
       - DOCKER_API_VERSION=1.43
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
     volumes:
-      - /volume1/docker:/volume1/docker:ro
+      - /volume1/docker:/volume1/docker:rw
       - /volume1/docker/liquidguru-mcp/data:/data
       - /volume1/homes:/volume1/homes:ro
       - /volume1/Media:/volume1/Media:ro

@@ -1,0 +1,39 @@
+# Nginx Proxy Manager — Proxy Host config for liquidguru-mcp
+#
+# Create a new Proxy Host in NPM with these settings:
+#
+# Domain Names:    mcp.liquidguru.synology.me   (or a subdomain of your choice)
+# Scheme:          http
+# Forward Hostname: liquidguru-mcp  (Docker service name, or 192.168.1.100)
+# Forward Port:    3000
+# Cache Assets:    OFF
+# Block Common Exploits: ON
+# Websockets Support: ON   ← important for SSE streaming
+#
+# SSL: Request a Let's Encrypt cert with Force SSL enabled
+#
+# Advanced tab — paste this custom Nginx config:
+
+location /mcp {
+    proxy_pass http://liquidguru-mcp:3000/mcp;
+
+    # Required for MCP streaming (SSE / chunked responses)
+    proxy_http_version 1.1;
+    proxy_set_header Connection '';
+    chunked_transfer_encoding on;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+
+    # Standard proxy headers
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location /health {
+    proxy_pass http://liquidguru-mcp:3000/health;
+    proxy_set_header Host $host;
+}
