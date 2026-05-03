@@ -120,14 +120,14 @@ function createMcpServer() {
           const fullPath = path.join(dir, entry.name);
           const prefix = '  '.repeat(depth - currentDepth);
           if (entry.isDirectory()) {
-            lines.push(`${prefix}ߓᠤ{entry.name}/`);
+            lines.push(`${prefix}📁 ${entry.name}/`);
             if (currentDepth > 1) lines.push(...walk(fullPath, currentDepth - 1));
           } else if (entry.isFile()) {
             let size = '';
             try { const s = fs.statSync(fullPath); size = ` (${formatBytes(s.size)}, ${s.mtime.toISOString().slice(0,10)})`; } catch {}
-            lines.push(`${prefix}ߓ䠤{entry.name}${size}`);
+            lines.push(`${prefix}📄 ${entry.name}${size}`);
           } else if (entry.isSymbolicLink()) {
-            lines.push(`${prefix}ߔ砤{entry.name} -> ${fs.readlinkSync(fullPath)}`);
+            lines.push(`${prefix}🔗 ${entry.name} -> ${fs.readlinkSync(fullPath)}`);
           }
         }
         return lines;
@@ -349,6 +349,66 @@ function createMcpServer() {
     }
   );
 
+  server.tool('write_file',
+    'Write content to a file on the NAS.',
+    {
+      path: z.string().describe('Absolute file path'),
+      content: z.string().describe('Content to write'),
+      encoding: z.enum(['utf8', 'base64']).default('utf8'),
+      create_dirs: z.boolean().default(true).describe('Create parent directories if needed'),
+    },
+    async ({ path: filePath, content, encoding, create_dirs }) => {
+      assertPathAllowed(filePath);
+      if (create_dirs) fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      const buf = encoding === 'base64' ? Buffer.from(content, 'base64') : content;
+      fs.writeFileSync(filePath, buf, encoding === 'base64' ? undefined : 'utf8');
+      const stat = fs.statSync(filePath);
+      return { content: [{ type: 'text', text: `Written: ${filePath} (${formatBytes(stat.size)})` }] };
+    }
+  );
+
+  server.tool('delete_file',
+    'Delete a file or empty directory on the NAS.',
+    {
+      path: z.string().describe('Absolute path to delete'),
+      recursive: z.boolean().default(false).describe('Recursively delete directory and contents'),
+    },
+    async ({ path: targetPath, recursive }) => {
+      assertPathAllowed(targetPath);
+      let stat;
+      try { stat = fs.statSync(targetPath); } catch (e) { return { content: [{ type: 'text', text: `Error: ${e.message}` }] }; }
+      if (stat.isDirectory()) {
+        fs.rmSync(targetPath, { recursive });
+      } else {
+        fs.unlinkSync(targetPath);
+      }
+      return { content: [{ type: 'text', text: `Deleted: ${targetPath}` }] };
+    }
+  );
+
+  server.tool('run_command',
+    'Run a shell command on the NAS.',
+    {
+      command: z.string().describe('Shell command to run'),
+      cwd: z.string().optional().describe('Working directory (must be within allowed roots)'),
+      timeout_ms: z.number().int().min(1000).max(60000).default(15000),
+    },
+    async ({ command, cwd, timeout_ms }) => {
+      const blocked = ['rm -rf /', 'mkfs', 'dd if=', ':(){ :|:& };:'];
+      if (blocked.some(b => command.includes(b))) {
+        return { content: [{ type: 'text', text: 'Error: blocked command' }] };
+      }
+      const opts = { encoding: 'utf8', timeout: timeout_ms };
+      if (cwd) { assertPathAllowed(cwd); opts.cwd = cwd; }
+      try {
+        const result = execSync(command, opts);
+        return { content: [{ type: 'text', text: result.trim() || '(no output)' }] };
+      } catch (e) {
+        return { content: [{ type: 'text', text: `Error (exit ${e.status}):\n${e.stderr || e.message}` }] };
+      }
+    }
+  );
+ 
   const BEE_HOST = 'liqui@192.168.1.9';
     const BEE_KEY  = '/volume1/homes/kaj/.ssh/id_ed25519';
     const SSH_OPTS = '-o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5';
